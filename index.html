@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>회계 기억의 전당</title>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --card-back: #34495e;
+            --card-front: #ecf0f1;
+            --accent: #e67e22;
+            --accent2: #e74c3c;
+            --text-color: #2c3e50;
+            --blue: #3498db;
+            --green: #2ecc71;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            margin: 0; padding: 0;
+            height: 100dvh;
+            display: flex; flex-direction: column;
+            align-items: center; overflow: hidden;
+        }
+
+        header { padding: 10px 0 0; text-align: center; }
+        h1 { margin: 0; font-family: 'Jua'; color: var(--accent); text-shadow: 2px 2px 0 #000; font-size: 1.6rem; }
+
+        /* 상단 정보창 */
+        .status-bar {
+            display: flex; gap: 12px; margin: 6px 0;
+            background: rgba(0,0,0,0.3); padding: 7px 18px; border-radius: 30px;
+            font-size: 1rem; font-weight: bold; align-items: center;
+        }
+        .moves { color: var(--blue); }
+        .matches { color: var(--green); }
+        .timer { color: #f39c12; font-size: 1.1rem; min-width: 70px; text-align: center; }
+        .timer.warning { color: var(--accent2); animation: blink 0.5s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.4; } }
+
+        /* 점수 공식 안내 */
+        .score-formula {
+            font-size: 0.72rem; color: rgba(255,255,255,0.45);
+            margin-bottom: 4px; letter-spacing: 0.02em;
+        }
+
+        /* 카드 그리드 영역 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 8px;
+            width: 100%;
+            max-width: 500px;
+            flex: 1;
+        }
+
+        /* 카드 스타일 */
+        .card {
+            background-color: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+            position: relative;
+            min-height: 70px;
+        }
+        
+        .card-inner {
+            position: relative;
+            width: 100%; height: 100%;
+            text-align: center;
+            transition: transform 0.4s;
+            transform-style: preserve-3d;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card.matched .card-inner { transform: rotateY(180deg); }
+        .card.matched { animation: pop 0.3s ease-out; opacity: 0.5; pointer-events: none; }
+        .card.wrong-flash .card-inner { animation: shakeCard 0.4s ease; }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%; height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .card-back {
+            background-color: var(--card-back);
+            color: #7f8c8d;
+            font-size: 1.8rem;
+            border: 2px solid #5d6d7e;
+        }
+        
+        .card-front {
+            background-color: var(--card-front);
+            color: var(--text-color);
+            transform: rotateY(180deg);
+            font-family: 'Jua';
+            font-size: 0.95rem;
+            word-break: keep-all;
+            line-height: 1.2;
+            border: 3px solid var(--accent);
+        }
+
+        @media (max-width: 360px) { .card-front { font-size: 0.78rem; } }
+
+        /* 오버레이 공통 */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(22, 32, 42, 0.97);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 100; padding: 20px;
+        }
+        .overlay h2 { color: var(--accent); font-family: 'Jua'; font-size: 2.2rem; margin-bottom: 10px; }
+        .overlay p { font-size: 1.1rem; color: #ecf0f1; margin-bottom: 20px; text-align: center; line-height: 1.6; }
+        
+        .btn {
+            background: var(--accent); color: white; border: none;
+            padding: 14px 36px; font-size: 1.4rem; font-family: 'Jua';
+            border-radius: 50px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            transition: transform 0.1s, background 0.2s;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: var(--blue); font-size: 1.1rem; padding: 10px 24px; }
+
+        /* 결과 점수 표시 */
+        .result-score-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 16px 30px;
+            margin-bottom: 16px;
+            text-align: center;
+            border: 2px solid var(--accent);
+        }
+        .result-score-box .big-score {
+            font-family: 'Jua'; font-size: 2.6rem; color: #f1c40f;
+        }
+        .result-score-box .score-detail {
+            font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-top: 4px;
+        }
+
+        /* 이름 등록 */
+        .name-row {
+            display: flex; gap: 8px; margin-bottom: 14px;
+        }
+        .name-row input {
+            padding: 10px 14px; border-radius: 10px; border: 2px solid #5d6d7e;
+            background: rgba(255,255,255,0.1); color: white;
+            font-size: 1rem; font-family: 'Noto Sans KR'; width: 150px;
+            outline: none; text-align: center;
+        }
+        .name-row input::placeholder { color: rgba(255,255,255,0.4); }
+        .name-row input:focus { border-color: var(--accent); }
+        .name-row button {
+            padding: 10px 18px; background: var(--blue); border: none;
+            border-radius: 10px; color: white; font-weight: bold;
+            font-size: 0.95rem; cursor: pointer; font-family: 'Noto Sans KR';
+        }
+
+        /* 랭킹 테이블 */
+        .rank-wrap {
+            width: 100%; max-width: 340px;
+            background: rgba(0,0,0,0.25); border-radius: 12px;
+            overflow: hidden; margin-bottom: 16px;
+        }
+        .rank-header {
+            display: grid; grid-template-columns: 40px 1fr 70px 70px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.3);
+            font-size: 0.78rem; color: rgba(255,255,255,0.5);
+            font-weight: bold; text-align: center;
+        }
+        .rank-row {
+            display: grid; grid-template-columns: 40px 1fr 70px 70px;
+            padding: 9px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-size: 0.88rem; text-align: center; align-items: center;
+        }
+        .rank-row.me { background: rgba(230,126,34,0.15); }
+        .rank-row .rank-num { font-family: 'Jua'; }
+        .rank-row .rank-num.gold   { color: #f1c40f; }
+        .rank-row .rank-num.silver { color: #bdc3c7; }
+        .rank-row .rank-num.bronze { color: #cd7f32; }
+        .rank-row .rank-score { color: #f1c40f; font-weight: bold; font-family: 'Jua'; }
+        .rank-row .rank-detail { color: rgba(255,255,255,0.45); font-size: 0.75rem; }
+
+        /* 로딩 스피너 */
+        .spinner {
+            width: 28px; height: 28px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 상태 메시지 */
+        .status-msg {
+            font-size: 0.82rem; margin-bottom: 8px;
+            min-height: 20px; text-align: center;
+        }
+        .status-msg.ok  { color: var(--green); }
+        .status-msg.err { color: var(--accent2); }
+
+        @keyframes pop      { 50% { transform: scale(1.08); } }
+        @keyframes shakeCard {
+            0%,100% { transform: rotateY(0deg); }
+            25% { transform: rotateY(-8deg); }
+            75% { transform: rotateY(8deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🧩 회계 기억의 전당 🧩</h1>
+    </header>
+
+    <div class="status-bar">
+        <div class="moves">시도: <span id="move-count">0</span></div>
+        <div class="matches">성공: <span id="match-count">0</span>/8</div>
+        <div class="timer" id="timer-display">⏱ 0.0s</div>
+    </div>
+    <div class="score-formula">점수 = 시도횟수 × 10 + 경과시간(초) — 낮을수록 1등!</div>
+
+    <div class="grid-container" id="grid"></div>
+
+    <!-- 시작 화면 -->
+    <div id="start-screen" class="overlay">
+        <h2>기억력 테스트</h2>
+        <p>계정과목과 그 설명이 짝꿍입니다.<br>예: <b style="color:var(--blue)">접대비</b> ↔ <b style="color:var(--accent)">거래처 선물</b><br><br>
+        <span style="font-size:0.9rem;color:rgba(255,255,255,0.6)">점수 = 시도횟수×10 + 시간(초)<br>낮을수록 좋습니다!</span></p>
+        <button class="btn" onclick="startGame()">게임 시작 🚀</button>
+    </div>
+
+    <!-- 결과 화면 -->
+    <div id="result-screen" class="overlay" style="display:none;">
+        <h2 id="result-emoji">CLEAR! 🎉</h2>
+        <p id="result-msg">훌륭한 기억력입니다!</p>
+
+        <div class="result-score-box">
+            <div class="big-score" id="final-score">0점</div>
+            <div class="score-detail" id="score-detail">시도 0회 × 10 + 0초 = 0점</div>
+        </div>
+
+        <div class="name-row">
+            <input type="text" id="player-name" placeholder="이름 입력" maxlength="8">
+            <button onclick="saveScore()">등록 📝</button>
+        </div>
+        <div class="status-msg" id="save-status"></div>
+
+        <div class="rank-wrap">
+            <div class="rank-header">
+                <span>순위</span><span>이름</span><span>점수</span><span>시도/시간</span>
+            </div>
+            <div id="rank-body">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button class="btn" onclick="startGame()">다시 하기 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        // ⚙️ 설정: GAS 웹앱 URL을 여기에 붙여넣으세요
+        // =====================================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzWMMmHMBqueMhJiPKXBn-clsl7YVx6rDCbT7Xhiqj5JbIDW1SDe20h_TDs-ctn5Wdp/exec";
+        // =====================================================
+
+        // 오디오
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function initAudio() { if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playSound(type) {
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if (type === 'flip') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, now);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'match') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(1200, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'clear') {
+                    [0,1,2].forEach(i => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination);
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime([523, 659, 784][i], now + i*0.12);
+                        g.gain.setValueAtTime(0.2, now + i*0.12);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i*0.12 + 0.3);
+                        o.start(now + i*0.12); o.stop(now + i*0.12 + 0.3);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // 카드 데이터
+        const allPairs = [
+            { id: 1,  a: "현금",      b: "통화/동전" },
+            { id: 2,  a: "보통예금",   b: "입출금 자유" },
+            { id: 3,  a: "외상매출금", b: "상품 외상판매" },
+            { id: 4,  a: "받을어음",   b: "약속어음 수령" },
+            { id: 5,  a: "비품",       b: "컴퓨터/책상" },
+            { id: 6,  a: "차량운반구", b: "트럭/승용차" },
+            { id: 7,  a: "복리후생비", b: "직원 회식/식대" },
+            { id: 8,  a: "접대비",     b: "거래처 선물" },
+            { id: 9,  a: "여비교통비", b: "출장비/택시비" },
+            { id: 10, a: "수도광열비", b: "가스/전기요금" },
+            { id: 11, a: "세금과공과", b: "재산세/회비" },
+            { id: 12, a: "이자수익",   b: "예금 이자 받음" },
+            { id: 13, a: "선수금",     b: "계약금 받음" },
+            { id: 14, a: "선급금",     b: "계약금 지급" },
+            { id: 15, a: "미지급금",   b: "법인카드 결제" }
+        ];
+
+        let flippedCards = [];
+        let matchedCount = 0;
+        let moves = 0;
+        let isLocked = false;
+
+        // 타이머
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedSeconds = 0;
+
+        const grid        = document.getElementById('grid');
+        const movesEl     = document.getElementById('move-count');
+        const matchesEl   = document.getElementById('match-count');
+        const timerEl     = document.getElementById('timer-display');
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                elapsedSeconds = (Date.now() - startTime) / 1000;
+                timerEl.textContent = `⏱ ${elapsedSeconds.toFixed(1)}s`;
+                timerEl.classList.toggle('warning', elapsedSeconds > 60);
+            }, 100);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            elapsedSeconds = (Date.now() - startTime) / 1000;
+        }
+
+        function calcScore(moves, seconds) {
+            return Math.round(moves * 10 + seconds);
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'none';
+
+            moves = 0; matchedCount = 0; isLocked = false; flippedCards = [];
+            elapsedSeconds = 0;
+            movesEl.innerText = moves;
+            matchesEl.innerText = matchedCount;
+            timerEl.textContent = '⏱ 0.0s';
+            timerEl.classList.remove('warning');
+
+            clearInterval(timerInterval);
+            setupBoard();
+        }
+
+        function setupBoard() {
+            grid.innerHTML = '';
+            let selected = [...allPairs].sort(() => 0.5 - Math.random()).slice(0, 8);
+            let cardData = [];
+            selected.forEach(p => {
+                cardData.push({ id: p.id, text: p.a, type: 'account' });
+                cardData.push({ id: p.id, text: p.b, type: 'desc' });
+            });
+            cardData.sort(() => 0.5 - Math.random());
+
+            let timerStarted = false;
+
+            cardData.forEach(data => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.id = data.id;
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back">?</div>
+                        <div class="card-front" style="color:${data.type==='account'?'#2980b9':'#c0392b'}">
+                            ${data.text}
+                        </div>
+                    </div>`;
+                card.addEventListener('click', function() {
+                    if (!timerStarted) { startTimer(); timerStarted = true; }
+                    flipCard.call(this);
+                });
+                grid.appendChild(card);
+            });
+        }
+
+        function flipCard() {
+            if (isLocked) return;
+            if (this === flippedCards[0]) return;
+            if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
+
+            playSound('flip');
+            this.classList.add('flipped');
+            flippedCards.push(this);
+
+            if (flippedCards.length === 2) {
+                moves++;
+                movesEl.innerText = moves;
+                checkForMatch();
+            }
+        }
+
+        function checkForMatch() {
+            isLocked = true;
+            const [c1, c2] = flippedCards;
+            if (c1.dataset.id === c2.dataset.id) {
+                playSound('match');
+                setTimeout(() => {
+                    c1.classList.add('matched');
+                    c2.classList.add('matched');
+                    matchedCount++;
+                    matchesEl.innerText = matchedCount;
+                    flippedCards = [];
+                    isLocked = false;
+                    if (matchedCount === 8) endGame();
+                }, 400);
+            } else {
+                playSound('wrong');
+                c1.classList.add('wrong-flash');
+                c2.classList.add('wrong-flash');
+                setTimeout(() => {
+                    c1.classList.remove('flipped', 'wrong-flash');
+                    c2.classList.remove('flipped', 'wrong-flash');
+                    flippedCards = [];
+                    isLocked = false;
+                }, 900);
+            }
+        }
+
+        function endGame() {
+            stopTimer();
+            playSound('clear');
+
+            const secs  = Math.round(elapsedSeconds);
+            const score = calcScore(moves, secs);
+
+            document.getElementById('final-score').textContent = score + '점';
+            document.getElementById('score-detail').textContent =
+                `시도 ${moves}회 × 10 + ${secs}초 = ${score}점`;
+
+            let msg = '';
+            if (score <= 100) msg = '천재인가요?! 완벽합니다! 🏆';
+            else if (score <= 160) msg = '훌륭한 기억력입니다! 👏';
+            else msg = '조금 더 분발하세요! 💪';
+            document.getElementById('result-msg').textContent = msg;
+
+            document.getElementById('save-status').textContent = '';
+            document.getElementById('player-name').value = '';
+            document.getElementById('result-screen').style.display = 'flex';
+
+            loadRanking();
+        }
+
+        // ===================== GAS 통신 =====================
+
+        async function loadRanking() {
+            const body = document.getElementById('rank-body');
+            body.innerHTML = '<div class="spinner"></div>';
+            try {
+                const res = await fetch(GAS_URL + '?action=getRanking');
+                const data = await res.json();
+                renderRanking(data);
+            } catch(e) {
+                body.innerHTML = '<div style="color:rgba(255,255,255,0.4);text-align:center;padding:12px;font-size:0.82rem;">랭킹을 불러올 수 없습니다<br>(GAS URL을 설정해주세요)</div>';
+            }
+        }
+
+        function renderRanking(list) {
+            const body = document.getElementById('rank-body');
+            if (!list || list.length === 0) {
+                body.innerHTML = '<div style="color:rgba(255,255,255,0.4);text-align:center;padding:12px;font-size:0.82rem;">아직 기록이 없습니다</div>';
+                return;
+            }
+            const rankColors = ['gold','silver','bronze'];
+            body.innerHTML = list.slice(0, 10).map((r, i) => `
+                <div class="rank-row">
+                    <span class="rank-num ${rankColors[i]||''}">${i+1}위</span>
+                    <span>${r.name}</span>
+                    <span class="rank-score">${r.score}점</span>
+                    <span class="rank-detail">${r.moves}회/${r.seconds}초</span>
+                </div>
+            `).join('');
+        }
+
+        async function saveScore() {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) { showStatus('이름을 입력해주세요', 'err'); return; }
+
+            const secs  = Math.round(elapsedSeconds);
+            const score = calcScore(moves, secs);
+            const statusEl = document.getElementById('save-status');
+            statusEl.textContent = '저장 중...';
+            statusEl.className = 'status-msg';
+
+            try {
+                const params = new URLSearchParams({
+                    action: 'saveScore',
+                    name,
+                    score,
+                    moves,
+                    seconds: secs,
+                    timestamp: new Date().toLocaleString('ko-KR')
+                });
+                await fetch(GAS_URL + '?' + params);
+                showStatus('✅ 등록 완료!', 'ok');
+                document.getElementById('player-name').value = '';
+                loadRanking();
+            } catch(e) {
+                showStatus('❌ 저장 실패 (GAS URL 확인)', 'err');
+            }
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('save-status');
+            el.textContent = msg;
+            el.className = 'status-msg ' + type;
+        }
+    </script>
+</body>
+</html>
