@@ -165,14 +165,14 @@
             overflow: hidden; margin-bottom: 20px;
         }
         .rank-header {
-            display: grid; grid-template-columns: 52px 1fr 70px 70px;
+            display: grid; grid-template-columns: 52px 1fr 80px 96px;
             padding: 9px 14px;
             background: rgba(0,0,0,0.35);
             font-size: 0.85rem; color: rgba(255,255,255,0.5);
             font-weight: bold; text-align: center;
         }
         .rank-row {
-            display: grid; grid-template-columns: 52px 1fr 70px 70px;
+            display: grid; grid-template-columns: 52px 1fr 80px 96px;
             padding: 10px 14px;
             border-bottom: 1px solid rgba(255,255,255,0.07);
             font-size: 0.96rem; text-align: center; align-items: center;
@@ -217,7 +217,7 @@
         <div class="matches">성공: <span id="match-count">0</span> / 8</div>
         <div class="timer" id="timer-display">⏱ 0.0s</div>
     </div>
-    <div class="score-formula">점수 = 1000 - (시도횟수 × 10) - 경과시간(초) — 높을수록 1등!</div>
+    <div class="score-formula">점수 = 1200 - (시도횟수 × 15) - 경과시간(초) × 1.5 — 높을수록 1등!</div>
 
     <div class="grid-container" id="grid"></div>
 
@@ -226,7 +226,7 @@
         <h2>기억력 테스트</h2>
         <p>계정과목과 그 설명이 짝꿍입니다.<br>
            예: <b style="color:var(--blue)">접대비</b> ↔ <b style="color:var(--accent)">거래처 선물</b><br><br>
-           <span style="font-size:1rem; color:rgba(255,255,255,0.6)">점수 = 1000 - 시도횟수×10 - 시간(초) &nbsp;|&nbsp; 높을수록 좋습니다!</span>
+           <span style="font-size:1rem; color:rgba(255,255,255,0.6)">점수 = 1200 - 시도횟수×15 - 시간(초)×1.5 &nbsp;|&nbsp; 높을수록 좋습니다!</span>
         </p>
         <button class="btn" onclick="startGame()">게임 시작 🚀</button>
     </div>
@@ -234,12 +234,11 @@
     <!-- 결과 화면 -->
     <div id="result-screen" class="overlay" style="display:none;">
         <h2>CLEAR! 🎉</h2>
-        <div id="result-rank" style="font-family:'Jua';font-size:2rem;margin-bottom:6px;">직급</div>
-        <p id="result-msg" style="margin-bottom:14px;">훌륭한 기억력입니다!</p>
+        <p id="result-msg">훌륭한 기억력입니다!</p>
 
         <div class="result-score-box">
             <div class="big-score" id="final-score">0점</div>
-            <div class="score-detail" id="score-detail">시도 0회 × 10 + 0초 = 0점</div>
+            <div class="score-detail" id="score-detail">1200 - 시도×15 - 시간×1.5 = 0점</div>
         </div>
 
         <div class="name-row">
@@ -250,7 +249,7 @@
 
         <div class="rank-wrap">
             <div class="rank-header">
-                <span>순위</span><span>이름</span><span>직급</span><span>점수</span>
+                <span>순위</span><span>이름</span><span>점수</span><span>시도/시간</span>
             </div>
             <div id="rank-body"><div class="spinner"></div></div>
         </div>
@@ -262,7 +261,7 @@
         // =====================================================
         // ⚙️ 설정: GAS 웹앱 URL을 여기에 붙여넣으세요
         // =====================================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzWMMmHMBqueMhJiPKXBn-clsl7YVx6rDCbT7Xhiqj5JbIDW1SDe20h_TDs-ctn5Wdp/exec";
+        const GAS_URL = "여기에_GAS_웹앱_URL_붙여넣기";
         // =====================================================
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -393,20 +392,8 @@
             elapsedSeconds = (Date.now() - startTime) / 1000;
         }
 
-        function calcScore(m, s) { return Math.max(0, Math.round(1000 - m * 10 - s)); }
+        function calcScore(m, s) { return Math.max(0, Math.round(1200 - m * 15 - s * 1.5)); }
 
-        // 직급 체계 (점수 낮을수록 좋음 → 원점수 = 시도×10 + 시간)
-        function getRank(score) {
-            // score = 1000 - 원점수  →  원점수 = 1000 - score
-            const raw = 1000 - score;
-            if      (raw >= 800) return { title:'CEO',  emoji:'🏆', color:'#f1c40f', msg:'전설의 회계 CEO! 완벽합니다!' };
-
-            else if (raw >= 600) return { title:'부장',  emoji:'💼', color:'#e67e22', msg:'베테랑 부장님! 훌륭합니다!' };
-            else if (raw >= 500) return { title:'과장',  emoji:'📋', color:'#3498db', msg:'믿음직한 과장! 잘했어요!' };
-            else if (raw >= 300) return { title:'대리',  emoji:'📎', color:'#2ecc71', msg:'성장 중인 대리! 조금만 더!' };
-            else                 return { title:'인턴',  emoji:'🆕', color:'#95a5a6', msg:'이제 시작! 다시 도전해봐요!' };
-        }
-        
         function startGame() {
             initAudio();
             document.getElementById('start-screen').style.display = 'none';
@@ -488,12 +475,15 @@
             const score = calcScore(moves, secs);
             document.getElementById('final-score').textContent = score + '점';
             document.getElementById('score-detail').textContent =
-                `1000 - 시도 ${moves}회×10 - ${secs}초 = ${score}점`;
-            // 직급 판정 (낮을수록 좋음)
-            const rank = getRank(score);
-            document.getElementById('result-rank').textContent = rank.emoji + ' ' + rank.title;
-            document.getElementById('result-rank').style.color = rank.color;
-            document.getElementById('result-msg').textContent = rank.msg;
+                `1200 - 시도 ${moves}회×15 - ${secs}초×1.5 = ${score}점`;
+            document.getElementById('result-msg').textContent =
+                score >= 950 ? '🏆 CEO 등극! 천재적인 기억력입니다!'
+              : score >= 850 ? '⭐ CEO급 실력! 매우 훌륭합니다!'
+              : score >= 750 ? '🎖 전무/상무급 실력! 훌륭합니다!'
+              : score >= 650 ? '🏅 이사급 실력! 좋습니다!'
+              : score >= 550 ? '📋 부장급 실력! 괜찮습니다!'
+              : score >= 450 ? '조금 더 분발하면 부장 승진! 💪'
+              : '더 연습하면 올라갈 수 있어요! 🔥';
             document.getElementById('save-status').textContent = '';
             document.getElementById('player-name').value = '';
             document.getElementById('result-screen').style.display = 'flex';
@@ -512,6 +502,18 @@
             }
         }
 
+        function getTitle(score) {
+            if (score >= 950) return { label: 'CEO',  color: '#f1c40f' };
+            if (score >= 850) return { label: 'CEO',  color: '#f1c40f' };
+            if (score >= 750) return { label: '전무',  color: '#e67e22' };
+            if (score >= 650) return { label: '이사',  color: '#3498db' };
+            if (score >= 550) return { label: '부장',  color: '#2ecc71' };
+            if (score >= 450) return { label: '차장',  color: '#1abc9c' };
+            if (score >= 350) return { label: '과장',  color: '#95a5a6' };
+            if (score >= 250) return { label: '대리',  color: '#7f8c8d' };
+            return                    { label: '사원',  color: '#5d6d7e' };
+        }
+
         function renderRanking(list) {
             const body = document.getElementById('rank-body');
             if (!list || list.length === 0) {
@@ -520,12 +522,13 @@
             }
             const colors = ['gold', 'silver', 'bronze'];
             body.innerHTML = list.slice(0, 10).map((r, i) => {
-                const rk = getRank(Number(r.score));
-                return `<div class="rank-row">
+                const t = getTitle(r.score);
+                return `
+                <div class="rank-row">
                     <span class="rank-num ${colors[i] || ''}">${i + 1}위</span>
-                    <span>${r.name}</span>
-                    <span style="color:${rk.color};font-family:'Jua';font-size:0.9rem;">${rk.emoji}${rk.title}</span>
+                    <span>${r.name} <span style="font-size:0.75rem;color:${t.color};font-weight:bold;">[${t.label}]</span></span>
                     <span class="rank-score">${r.score}점</span>
+                    <span class="rank-detail">${r.moves}회 / ${r.seconds}초</span>
                 </div>`;
             }).join('');
         }
