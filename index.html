@@ -399,13 +399,14 @@
         function getRank(score) {
             // score = 1000 - 원점수  →  원점수 = 1000 - score
             const raw = 1000 - score;
-            if      (raw <= 200) return { title:'CEO',  emoji:'🏆', color:'#f1c40f', msg:'전설의 회계 CEO! 완벽합니다!' };
-            else if (raw <= 250) return { title:'부장',  emoji:'💼', color:'#e67e22', msg:'베테랑 부장님! 훌륭합니다!' };
-            else if (raw <= 320) return { title:'과장',  emoji:'📋', color:'#3498db', msg:'믿음직한 과장! 잘했어요!' };
-            else if (raw <= 450) return { title:'대리',  emoji:'📎', color:'#2ecc71', msg:'성장 중인 대리! 조금만 더!' };
+            if      (raw >= 800) return { title:'CEO',  emoji:'🏆', color:'#f1c40f', msg:'전설의 회계 CEO! 완벽합니다!' };
+
+            else if (raw >= 600) return { title:'부장',  emoji:'💼', color:'#e67e22', msg:'베테랑 부장님! 훌륭합니다!' };
+            else if (raw >= 500) return { title:'과장',  emoji:'📋', color:'#3498db', msg:'믿음직한 과장! 잘했어요!' };
+            else if (raw >= 300) return { title:'대리',  emoji:'📎', color:'#2ecc71', msg:'성장 중인 대리! 조금만 더!' };
             else                 return { title:'인턴',  emoji:'🆕', color:'#95a5a6', msg:'이제 시작! 다시 도전해봐요!' };
         }
-
+        
         function startGame() {
             initAudio();
             document.getElementById('start-screen').style.display = 'none';
